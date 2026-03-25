@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using TrainLoop.Core.Entities;
+using TrainLoop.Core.Models;
+using TrainLoop.Core.Services;
 using TrainLoop.Infrastructure.Data;
+using TrainLoop.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,8 @@ builder.Services.AddDbContext<TrainLoopDbContext>(options =>
         ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
     options.UseNpgsql(connectionString);
 });
+
+builder.Services.AddScoped<IQuizEngine, QuizEngine>();
 
 var app = builder.Build();
 
@@ -102,6 +107,56 @@ app.MapGet("/api/reviewers", async (TrainLoopDbContext db) =>
     await db.Reviewers.ToListAsync())
     .WithName("GetReviewers");
 
+// --- Quiz ---
+
+app.MapGet("/api/reviewers/{id:guid}/quiz", async (Guid id, IQuizEngine quizEngine) =>
+{
+    var item = await quizEngine.GetNextQuizItemAsync(id);
+    return item is null ? Results.NoContent() : Results.Ok(item);
+})
+.WithName("GetNextQuizItem");
+
+app.MapPost("/api/reviewers/{id:guid}/quiz/{quizItemId:guid}", async (
+    Guid id,
+    Guid quizItemId,
+    SubmitAnswerRequest request,
+    IQuizEngine quizEngine) =>
+{
+    var isCorrect = await quizEngine.SubmitAnswerAsync(id, quizItemId, request.Answer);
+    return Results.Ok(new { IsCorrect = isCorrect });
+})
+.WithName("SubmitQuizAnswer");
+
+app.MapGet("/api/reviewers/{id:guid}/stats", async (Guid id, IQuizEngine quizEngine) =>
+{
+    try
+    {
+        var stats = await quizEngine.GetReviewerStatsAsync(id);
+        return Results.Ok(stats);
+    }
+    catch (InvalidOperationException)
+    {
+        return Results.NotFound();
+    }
+})
+.WithName("GetReviewerStats");
+
+// --- Quiz Items (admin) ---
+
+app.MapPost("/api/quiz-items", async (CreateQuizItemRequest request, TrainLoopDbContext db) =>
+{
+    var item = new QuizItem
+    {
+        DataItemId = request.DataItemId,
+        KnownLabel = request.KnownLabel,
+        Difficulty = request.Difficulty
+    };
+    db.QuizItems.Add(item);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/quiz-items/{item.Id}", item);
+})
+.WithName("CreateQuizItem");
+
 app.Run();
 
 // --- Request records ---
@@ -109,3 +164,5 @@ app.Run();
 record CreateDatasetRequest(string Name, string? Description);
 record CreateDataItemRequest(string Content, string? ContentType);
 record CreateAnnotationRequest(Guid ReviewerId, string Label, string Rationale, double Confidence, TimeSpan TimeToLabel);
+record SubmitAnswerRequest(string Answer);
+record CreateQuizItemRequest(Guid DataItemId, string KnownLabel, string? Difficulty);
