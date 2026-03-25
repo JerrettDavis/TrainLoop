@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TrainLoop.Api/TrainLoop.Api.csproj" />
+    <Project Path="src/TrainLoop.Core/TrainLoop.Core.csproj" />
+    <Project Path="src/TrainLoop.Infrastructure/TrainLoop.Infrastructure.csproj" />
+    <Project Path="src/TrainLoop.Web/TrainLoop.Web.csproj" />
+    <Project Path="src/TrainLoop.Worker/TrainLoop.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/TrainLoop.Api.Tests/TrainLoop.Api.Tests.csproj" />
+    <Project Path="tests/TrainLoop.Core.Tests/TrainLoop.Core.Tests.csproj" />
+  </Folder>
+</Solution>
